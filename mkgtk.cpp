@@ -25,8 +25,8 @@ int main(int argc, char **argv) {
 			fs::create_directories(dir);
 
 		fs::path base = dir;
-		fs::create_directories(base / "include");
-		fs::create_directories(base / "src");
+		fs::create_directories(base / "include" / "ui");
+		fs::create_directories(base / "src" / "ui");
 
 		std::ofstream makefile(base / "Makefile");
 		makefile << R"""(ifeq ($(BUILD),release)
@@ -110,7 +110,7 @@ sinclude $(DEPFILE)
 		window << R"""(<?xml version="1.0" encoding="UTF-8"?>
 <interface>
 	<requires lib="gtk+" version="4.0" />
-	<object class="GtkApplicationWindow" id="app_window">
+	<object class="GtkApplicationWindow" id="main_window">
 		<property name="title" translatable="yes">)""" << ns << R"""(</property>
 		<property name="default-width">1600</property>
 		<property name="default-height">1000</property>
@@ -154,6 +154,55 @@ sinclude $(DEPFILE)
 		window.close();
 
 		std::ofstream(base / "style.css").close();
+
+		std::ofstream mainwindow_cpp(base / "src" / "ui" / "MainWindow.cpp");
+		mainwindow_cpp << R"""(#include "ui/MainWindow.h"
+
+namespace )""" << ns << R"""( {
+	MainWindow::MainWindow(BaseObjectType *cobject, const Glib::RefPtr<Gtk::Builder> &builder_):
+	Gtk::ApplicationWindow(cobject), builder(builder_) {
+		header = builder->get_widget<Gtk::HeaderBar>("headerbar");
+		set_titlebar(*header);
+
+		cssProvider = Gtk::CssProvider::create();
+		cssProvider->load_from_resource(")""" << slash_prefix << R"""(/style.css");
+		Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), cssProvider,
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+		add_action("example", Gio::ActionMap::ActivateSlot([this] {
+			
+		}));
+	}
+
+	MainWindow * MainWindow::create() {
+		auto builder = Gtk::Builder::create_from_resource(")""" << slash_prefix << R"""(/window.ui");
+		auto window = Gtk::Builder::get_widget_derived<MainWindow>(builder, "main_window");
+		if (!window)
+			throw std::runtime_error("No \"main_window\" object in window.ui");
+		return window;
+	}
+
+	void MainWindow::delay(std::function<void()> fn) {
+		add_tick_callback([fn](const auto &) {
+			fn();
+			return false;
+		});
+	}
+
+	void MainWindow::alert(const Glib::ustring &message, Gtk::MessageType type, bool modal, bool use_markup) {
+		dialog.reset(new Gtk::MessageDialog(*this, message, use_markup, type, Gtk::ButtonsType::OK, modal));
+		dialog->signal_response().connect([this](int) {
+			dialog->close();
+		});
+		dialog->show();
+	}
+
+	void MainWindow::error(const Glib::ustring &message, bool modal, bool use_markup) {
+		alert(message, Gtk::MessageType::ERROR, modal, use_markup);
+	}
+}
+)""";
+		mainwindow_cpp.close();
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();
