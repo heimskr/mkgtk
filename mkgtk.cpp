@@ -271,6 +271,7 @@ namespace )""" << ns << R"""( {
 		std::ofstream app_cpp(base / "src" / "App.cpp");
 		app_cpp << R"""(#include "App.h"
 #include "UI.h"
+#include "ui/MainWindow.h"
 
 namespace )""" << ns << R"""( {
 	App::App(): Gtk::Application(")""" << prefix << R"""(") {}
@@ -317,6 +318,39 @@ namespace )""" << ns << R"""( {
 }
 )""";
 		app_cpp.close();
+
+		std::ofstream app_h(base / "include" / "App.h");
+		app_h << R"""(#pragma once
+
+#include <gtkmm.h>
+#include <string>
+
+namespace )""" << ns << R"""( {
+	class MainWindow;
+
+	class App: public Gtk::Application {
+		public:
+			Glib::RefPtr<Gtk::Builder> builder;
+
+			static Glib::RefPtr<App> create();
+
+			void on_startup() override;
+			void on_activate() override;
+
+			MainWindow * create_window();
+
+			static const char * get_text(const std::string &path, gsize &);
+			static const char * get_text(const std::string &path);
+
+		protected:
+			App();
+
+		private:
+			void on_hide_window(Gtk::Window *);
+	};
+}
+)""";
+		app_h.close();
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();
