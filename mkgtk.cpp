@@ -5,12 +5,13 @@
 int main(int argc, char **argv) {
 	namespace fs = std::filesystem;
 
-	if (argc != 4) {
-		std::cerr << "Usage: mkgtk <directory> <namespace> <prefix>\n";
+	if (argc != 4 && argc != 5) {
+		std::cerr << "Usage: mkgtk <directory> <namespace> <prefix> [window title]\n";
 		return 1;
 	}
 
 	const std::string dir = argv[1], prefix = argv[2], ns = argv[3];
+	const std::string window_title = 4 < argc? argv[4] : ns;
 
 	std::string slash_prefix = "/" + prefix;
 	std::replace(slash_prefix.begin(), slash_prefix.end(), '.', '/');
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
 		fs::path base = dir;
 		fs::create_directories(base / "include" / "ui");
 		fs::create_directories(base / "src" / "ui");
+		fs::create_directories(base / "resources");
 
 		std::ofstream makefile(base / "Makefile");
 		makefile << R"""(ifeq ($(BUILD),release)
@@ -106,12 +108,12 @@ sinclude $(DEPFILE)
 )""";
 		gresource.close();
 
-		std::ofstream window(base / "window.ui");
+		std::ofstream window(base / "resources" / "window.ui");
 		window << R"""(<?xml version="1.0" encoding="UTF-8"?>
 <interface>
 	<requires lib="gtk+" version="4.0" />
 	<object class="GtkApplicationWindow" id="main_window">
-		<property name="title" translatable="yes">)""" << ns << R"""(</property>
+		<property name="title" translatable="yes">)""" << window_title << R"""(</property>
 		<property name="default-width">1600</property>
 		<property name="default-height">1000</property>
 		<property name="hide-on-close">True</property>
@@ -119,7 +121,7 @@ sinclude $(DEPFILE)
 			<object class="GtkHeaderBar" id="headerbar">
 				<property name="title-widget">
 					<object class="GtkLabel">
-						<property name="label" translatable="yes">)""" << ns << R"""(</property>
+						<property name="label" translatable="yes">)""" << window_title << R"""(</property>
 						<property name="single-line-mode">True</property>
 						<property name="ellipsize">end</property>
 						<style>
@@ -143,17 +145,17 @@ sinclude $(DEPFILE)
 	</object>
 	<menu id="menu">
 		<section>
-			<!-- <item>
+			<item>
 				<attribute name="label" translatable="yes">_Example</attribute>
 				<attribute name="action">win.example</attribute>
-			</item> -->
+			</item>
 		</section>
 	</menu>
 </interface>
 )""";
 		window.close();
 
-		std::ofstream(base / "style.css").close();
+		std::ofstream(base / "resources" / "style.css").close();
 
 		std::ofstream mainwindow_cpp(base / "src" / "ui" / "MainWindow.cpp");
 		mainwindow_cpp << R"""(#include "ui/MainWindow.h"
@@ -269,8 +271,9 @@ namespace )""" << ns << R"""( {
 		mainwindow_h.close();
 
 		std::ofstream app_cpp(base / "src" / "App.cpp");
-		app_cpp << R"""(#include "App.h"
-#include "UI.h"
+		app_cpp << R"""(#include <iostream>
+
+#include "App.h"
 #include "ui/MainWindow.h"
 
 namespace )""" << ns << R"""( {
@@ -351,6 +354,17 @@ namespace )""" << ns << R"""( {
 }
 )""";
 		app_h.close();
+
+		std::ofstream main_cpp(base / "src" / "main.cpp");
+		main_cpp << R"""(#include "App.h"
+
+int main(int argc, char *argv[]) {
+	srand(time(nullptr));
+	auto app = )""" << ns << R"""(::App::create();
+	return app->run(argc, argv);
+}
+)""";
+		main_cpp.close();
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();

@@ -9,4 +9,4 @@ clean:
 	rm -rf mkgtk test
 
 test: mkgtk
-	./mkgtk test com.heimskr.test Test
+	./mkgtk testapp com.heimskr.test Test "Test App"

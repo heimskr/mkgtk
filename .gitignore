@@ -1,4 +1,4 @@
 /mkgtk
 *.o
 .vscode
-/test
+/testapp
