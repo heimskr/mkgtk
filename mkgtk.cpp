@@ -243,10 +243,10 @@ namespace )""" << ns << R"""( {
 
 			static MainWindow * create();
 
-			/** Causes a function to occur on the next Gtk tick (or possibly later). Not thread-safe. */
+			/** Causes a function to occur on the next GTK tick (or possibly later). Not thread-safe. */
 			void delay(std::function<void()>, unsigned count = 1);
 
-			/** Queues a function to be executed in the Gtk thread. Thread-safe. Can be used from any thread. */
+			/** Queues a function to be executed in the GTK thread. Thread-safe. Can be used from any thread. */
 			void queue(std::function<void()>);
 
 			/** Displays an alert. This will reset the dialog pointer. If you need to use this inside a dialog's code,
@@ -266,6 +266,57 @@ namespace )""" << ns << R"""( {
 	};
 }
 )""";
+		mainwindow_h.close();
+
+		std::ofstream app_cpp(base / "src" / "App.cpp");
+		app_cpp << R"""(#include "App.h"
+#include "UI.h"
+
+namespace )""" << ns << R"""( {
+	App::App(): Gtk::Application(")""" << prefix << R"""(") {}
+
+	Glib::RefPtr<App> App::create() {
+		return Glib::make_refptr_for_instance<App>(new App());
+	}
+
+	void App::on_startup() {
+		Gtk::Application::on_startup();
+		set_accel_for_action("win.example", "<Ctrl>e");
+	}
+
+	void App::on_activate() {
+		try {
+			auto window = create_window();
+			window->present();
+		} catch (const Glib::Error &err) {
+			std::cerr << "App::on_activate(): " << err.what() << std::endl;
+		} catch (const std::exception &err) {
+			std::cerr << "App::on_activate(): " << err.what() << std::endl;
+		}
+	}
+
+	MainWindow * App::create_window() {
+		MainWindow *window = MainWindow::create();
+		add_window(*window);
+		window->signal_hide().connect(sigc::bind(sigc::mem_fun(*this, &App::on_hide_window), window));
+		return window;
+	}
+
+	const char * App::get_text(const std::string &path, gsize &size) {
+		return reinterpret_cast<const char *>(Gio::Resource::lookup_data_global(path)->get_data(size));
+	}
+
+	const char * App::get_text(const std::string &path) {
+		gsize size;
+		return get_text(path, size);
+	}
+
+	void App::on_hide_window(Gtk::Window *window) {
+		delete window;
+	}
+}
+)""";
+		app_cpp.close();
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();
