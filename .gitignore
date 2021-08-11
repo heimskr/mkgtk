@@ -1,0 +1,4 @@
+/mkgtk
+*.o
+.vscode
+/test
