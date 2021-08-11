@@ -5,12 +5,15 @@
 int main(int argc, char **argv) {
 	namespace fs = std::filesystem;
 
-	if (argc != 3) {
-		std::cerr << "Usage: mkgtk <directory> <namespace>\n";
+	if (argc != 4) {
+		std::cerr << "Usage: mkgtk <directory> <namespace> <prefix>\n";
 		return 1;
 	}
 
-	const std::string dir = argv[1], ns = argv[2];
+	const std::string dir = argv[1], prefix = argv[2], ns = argv[3];
+
+	std::string slash_prefix = "/" + prefix;
+	std::replace(slash_prefix.begin(), slash_prefix.end(), '.', '/');
 	
 	try {
 		if (fs::exists(dir)) {
@@ -25,8 +28,8 @@ int main(int argc, char **argv) {
 		fs::create_directories(base / "include");
 		fs::create_directories(base / "src");
 
-		std::ofstream makefile_stream(base / "Makefile");
-		makefile_stream << R"""(ifeq ($(BUILD),release)
+		std::ofstream makefile(base / "Makefile");
+		makefile << R"""(ifeq ($(BUILD),release)
 BUILDFLAGS := -O3
 else
 BUILDFLAGS := -g -O0
@@ -86,7 +89,22 @@ depend:
 
 sinclude $(DEPFILE)
 )""";
-		makefile_stream.close();
+		makefile.close();
+
+		std::ofstream gitignore(base / ".gitignore");
+		gitignore << "/" << dir << "\n*.o\n/.dep\n.vscode\n/src/resources.cpp\n";
+		gitignore.close();
+
+		std::ofstream gresource(base / (dir + ".gresource.xml"));
+		gresource << R"""(<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+	<gresource prefix=")""" << slash_prefix << R"""(">
+		<file preprocess="xml-stripblanks">window.ui</file>
+		<file>style.css</file>
+	</gresource>
+</gresources>
+)""";
+		gresource.close();
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();
