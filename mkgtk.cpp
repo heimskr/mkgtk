@@ -169,6 +169,13 @@ namespace )""" << ns << R"""( {
 		Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), cssProvider,
 			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
+		functionQueueDispatcher.connect([this] {
+			auto lock = std::unique_lock(functionQueueMutex);
+			for (auto fn: functionQueue)
+				fn();
+			functionQueue.clear();
+		});
+
 		add_action("example", Gio::ActionMap::ActivateSlot([this] {
 			
 		}));
@@ -182,11 +189,24 @@ namespace )""" << ns << R"""( {
 		return window;
 	}
 
-	void MainWindow::delay(std::function<void()> fn) {
-		add_tick_callback([fn](const auto &) {
-			fn();
-			return false;
-		});
+	void MainWindow::delay(std::function<void()> fn, unsigned count) {
+		if (count <= 1)
+			add_tick_callback([fn](const auto &) {
+				fn();
+				return false;
+			});
+		else
+			delay([this, fn, count] {
+				delay(fn, count - 1);
+			});
+	}
+
+	void MainWindow::queue(std::function<void()> fn) {
+		{
+			auto lock = std::unique_lock(functionQueueMutex);
+			functionQueue.push_back(fn);
+		}
+		functionQueueDispatcher.emit();
 	}
 
 	void MainWindow::alert(const Glib::ustring &message, Gtk::MessageType type, bool modal, bool use_markup) {
@@ -203,6 +223,49 @@ namespace )""" << ns << R"""( {
 }
 )""";
 		mainwindow_cpp.close();
+
+		std::ofstream mainwindow_h(base / "include" / "ui" / "MainWindow.h");
+		mainwindow_h << R"""(#pragma once
+
+#include <gtkmm.h>
+#include <functional>
+#include <list>
+#include <memory>
+#include <mutex>
+
+namespace )""" << ns << R"""( {
+	class MainWindow: public Gtk::ApplicationWindow {
+		public:
+			std::unique_ptr<Gtk::Dialog> dialog;
+			Gtk::HeaderBar *header = nullptr;
+
+			MainWindow(BaseObjectType *, const Glib::RefPtr<Gtk::Builder> &);
+
+			static MainWindow * create();
+
+			/** Causes a function to occur on the next Gtk tick (or possibly later). Not thread-safe. */
+			void delay(std::function<void()>, unsigned count = 1);
+
+			/** Queues a function to be executed in the Gtk thread. Thread-safe. Can be used from any thread. */
+			void queue(std::function<void()>);
+
+			/** Displays an alert. This will reset the dialog pointer. If you need to use this inside a dialog's code,
+			 *  use delay(). */
+			void alert(const Glib::ustring &message, Gtk::MessageType = Gtk::MessageType::INFO, bool modal = true,
+			           bool use_markup = false);
+
+			/** Displays an error message. (See alert.) */
+			void error(const Glib::ustring &message, bool modal = true, bool use_markup = false);
+
+		private:
+			Glib::RefPtr<Gtk::Builder> builder;
+			Glib::RefPtr<Gtk::CssProvider> cssProvider;
+			std::list<std::function<void()>> functionQueue;
+			std::recursive_mutex functionQueueMutex;
+			Glib::Dispatcher functionQueueDispatcher;
+	};
+}
+)""";
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();
