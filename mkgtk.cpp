@@ -105,6 +105,55 @@ sinclude $(DEPFILE)
 </gresources>
 )""";
 		gresource.close();
+
+		std::ofstream window(base / "window.ui");
+		window << R"""(<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+	<requires lib="gtk+" version="4.0" />
+	<object class="GtkApplicationWindow" id="app_window">
+		<property name="title" translatable="yes">)""" << ns << R"""(</property>
+		<property name="default-width">1600</property>
+		<property name="default-height">1000</property>
+		<property name="hide-on-close">True</property>
+		<child type="titlebar">
+			<object class="GtkHeaderBar" id="headerbar">
+				<property name="title-widget">
+					<object class="GtkLabel">
+						<property name="label" translatable="yes">)""" << ns << R"""(</property>
+						<property name="single-line-mode">True</property>
+						<property name="ellipsize">end</property>
+						<style>
+							<class name="title" />
+						</style>
+					</object>
+				</property>
+				<child type="end">
+					<object class="GtkMenuButton" id="menu_button">
+						<property name="valign">center</property>
+						<property name="focus-on-click">0</property>
+						<property name="menu-model">menu</property>
+						<property name="icon-name">open-menu-symbolic</property>
+						<accessibility>
+							<property name="label" translatable="yes">Primary menu</property>
+						</accessibility>
+					</object>
+				</child>
+			</object>
+		</child>
+	</object>
+	<menu id="menu">
+		<section>
+			<!-- <item>
+				<attribute name="label" translatable="yes">_Example</attribute>
+				<attribute name="action">win.example</attribute>
+			</item> -->
+		</section>
+	</menu>
+</interface>
+)""";
+		window.close();
+
+		std::ofstream(base / "style.css").close();
 	} catch (const fs::filesystem_error &err) {
 		std::cerr << err.what() << "\n";
 		return err.code().value();
