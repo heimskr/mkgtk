@@ -57,11 +57,11 @@ src/resources.cpp: $(RESXML) $(shell $(GLIB_COMPILE_RESOURCES) --sourcedir=resou
 
 %.o: %.cpp
 	@ printf "\e[2m[\e[22;32mcc\e[39;2m]\e[22m $< \e[2m$(BUILDFLAGS)\e[22m\n"
-	@ $(CPP) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
+	@ $(COMPILER) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OUTPUT): $(OBJECTS)
 	@ printf "\e[2m[\e[22;36mld\e[39;2m]\e[22m $@\n"
-	@ $(CPP) $^ -o $@ $(LDFLAGS)
+	@ $(COMPILER) $^ -o $@ $(LDFLAGS)
 ifeq ($(BUILD),release)
 	strip $@
 endif
@@ -84,7 +84,7 @@ DEPTOKEN := "\# MAKEDEPENDS"
 
 depend:
 	@ echo $(DEPTOKEN) > $(DEPFILE)
-	makedepend -f $(DEPFILE) -s $(DEPTOKEN) -- $(CPP) $(CPPFLAGS) -- $(SOURCES) 2>/dev/null
+	makedepend -f $(DEPFILE) -s $(DEPTOKEN) -- $(COMPILER) $(CPPFLAGS) -- $(SOURCES) 2>/dev/null
 	@ rm $(DEPFILE).bak
 
 sinclude $(DEPFILE)
