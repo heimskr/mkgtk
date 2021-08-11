@@ -6,7 +6,7 @@ mkgtk: mkgtk.cpp
 	$(COMPILER) -std=c++20 $< -o $@
 
 clean:
-	rm mkgtk
+	rm -rf mkgtk test
 
 test: mkgtk
 	./mkgtk test Test
