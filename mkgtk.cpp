@@ -95,7 +95,7 @@ sinclude $(DEPFILE)
 		makefile.close();
 
 		std::ofstream gitignore(base / ".gitignore");
-		gitignore << "/" << dir << "\n*.o\n/.dep\n.vscode\n/src/resources.cpp\n";
+		gitignore << "/" << dir << "\n*.o\n/.dep\n/src/resources.cpp\n";
 		gitignore.close();
 
 		std::ofstream gresource(base / (dir + ".gresource.xml"));
